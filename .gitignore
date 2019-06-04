@@ -62,4 +62,4 @@ tools/bin/
 core
 *.core
 tools/jffs2/mkfs.jffs2
-
+*.img
