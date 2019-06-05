@@ -1,0 +1,60 @@
+#!/bin/sh
+
+getrootfs() {
+	set -- `egrep '^mtd:Rootfs[[:digit:]]' /proc/self/mounts`
+	if [ -n "$1" -a "$2" = "/" -a "$3" = "jffs2" ]; then
+		case "${1#mtd:}" in
+			Rootfs1) echo Rootfs2;;
+			Rootfs2) echo Rootfs1;;
+			*);;
+		esac
+	fi
+}
+
+patchrootfs() {
+	rootfs=`getrootfs`
+	if [ -z "${rootfs}" ]; then
+		echo "Failed to detect rootfs!" >&2
+		return 1
+	fi
+	mpoint=`mktemp -t -p /tmp -d`
+	if !mount -t jffs2 -o rw mtd:${rootfs} ${mpoint}; then
+		echo "Failed to mount rootfs!" >&2
+		return 1
+	fi
+	cp -a -f /etc/inittab ${mpoint}/etc
+	cp -a -f /etc/rc.local ${mpoint}/etc
+	cd ${mpoint}/usr/sbin || return
+	rm -f install_properties
+	mv -f dualImage_ctrl dualImage_ctrl.orig
+	ln -sf /usr/sbin/dualImage_ctrl.orig install_properties
+	cp -a -f /usr/sbin/dualImage_ctrl .
+	echo "Patched!" >&2
+	sync
+	umount ${mpoint}
+}
+
+# Log and stash
+_FWROOT=/opt/omci-upgrade
+_FWLOG=${_FWROOT}/upgrade.log
+
+# Set PATH for sure
+PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/mnt/rootfs/bin"
+export PATH
+
+mkdir -p ${_FWROOT}
+if touch ${_FWLOG}; then
+	exec >>${_FWLOG} 2>&1
+	echo "`date '+%Y-%m-%d %H:%M:%S'` $0 called with args: $@" >&2
+fi
+
+if [ "$1" = "-u" -a "$3" = "-m" -a "$4" = "OMCI" ]; then
+	echo "Intercepting OMCI upgrade..." >&2
+	cp -f "$2" ${_FWROOT}/`date +%Y%m%d%H%M%S`.img
+	/usr/sbin/dualImage_ctrl.orig $@
+	_rv=$?
+	echo "flasher returned ${_rv}, trying to patch new rootfs" >&2
+	patchrootfs
+	exit ${_rv}
+fi
+
