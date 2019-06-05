@@ -1,0 +1,55 @@
+#!/bin/sh
+PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/mnt/rootfs/bin
+LD_LIBRARY_PATH=/lib:/usr/lib:/mnt/rootfs/lib:${LD_LIBRARY_PATH}
+export PATH LD_LIBRARY_PATH
+
+_changeSetting() {
+	if [ "`cmld_client get $1|cut -d' ' -f3`" != "$2" ]; then
+		echo "$1 != $2, fixing" >&2
+		cmld_client set $1=$2
+		return 0
+	else
+		echo "$1 == $2, ok" >&2
+		return 1
+	fi
+}
+
+# mount Entware and start logging
+if mount -t ext2 -o rw LABEL=ENTWARE /opt; then
+	mkdir -p /opt/logs
+	exec > /opt/logs/startup.log 2>&1
+fi
+
+# wait for configuration load
+_i=0
+while [ ! -f /tmp/config/.p ]; do
+	echo "Waiting for modem configuration (i=${_i})" >&2
+	sleep 1
+	# There is no $(()) in Sercomm Busybox
+	_i=`expr ${_i} + 1`
+	if [ "${_i}" -gt 10 ]; then
+		echo "Giving up..." >&2
+		break
+	fi
+done
+
+
+# Enable shell and promote support to admin
+_i=0
+_changeSetting InternetGatewayDevice.X_SC_Management.ShellEnable 1
+_i=`expr ${_i} + $?`
+_changeSetting InternetGatewayDevice.X_SC_Management.LoginAccount.2.Group admin
+_i=`expr ${_i} + $?`
+
+# save if we changed anything
+if [ "${_i}" -gt 0 ]; then
+	cmld_client save
+fi
+
+# start Entware if present
+if [ -x /opt/etc/init.d/rc.unslung ]; then
+	PATH=/opt/bin:/opt/sbin:$PATH
+	export PATH
+	/opt/etc/init.d/rc.unslung start
+fi
+

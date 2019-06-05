@@ -17,6 +17,7 @@ patchrootfs() {
 		echo "Failed to detect rootfs!" >&2
 		return 1
 	fi
+	echo "Detected new rootfs: ${rootfs}" >&2
 	mpoint=`mktemp -t -p /tmp -d`
 	if !mount -t jffs2 -o rw mtd:${rootfs} ${mpoint}; then
 		echo "Failed to mount rootfs!" >&2
@@ -24,6 +25,7 @@ patchrootfs() {
 	fi
 	cp -a -f /etc/inittab ${mpoint}/etc
 	cp -a -f /etc/rc.local ${mpoint}/etc
+	cp -a -f /etc/rc.shutdown ${mpoint}/etc
 	cd ${mpoint}/usr/sbin || return
 	rm -f install_properties
 	mv -f dualImage_ctrl dualImage_ctrl.orig

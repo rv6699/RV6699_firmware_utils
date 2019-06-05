@@ -1,0 +1,6 @@
+::sysinit:/etc/rcS
+::once:/etc/rc.local
+ttyS0::askfirst:-/bin/sh
+::restart:/sbin/init
+::shutdown:/etc/rc.shutdown
+::shutdown:/usr/sbin/rc voip stop

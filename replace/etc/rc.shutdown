@@ -1,0 +1,10 @@
+#!/bin/sh
+# stop Entware if present
+if [ -x /opt/etc/init.d/rc.unslung ]; then
+	PATH=/opt/bin:/opt/sbin:$PATH
+	export PATH
+	/opt/etc/init.d/rc.unslung stop
+fi
+
+umount -r /opt
+

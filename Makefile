@@ -49,7 +49,7 @@ patch: $(OUT)/.extract-stamp
 	@if test -f $(OUT)/.patch-stamp; then echo Cyclic patches not supported;\
 		echo "Run 'make clean'"; false; fi
 	rsync -avb --suffix=.orig $(PWD)/replace/. $(OUT)/rootfs/fs_1
-	find out/rootfs/fs_1 -type l -name "*.orig" -delete
+	find $(FSROOT) -type l -name "*.orig" -delete
 	touch $(OUT)/.patch-stamp
 
 $(MKFS): $(PWD)/tools/jffs2/mkfs.jffs2.c
