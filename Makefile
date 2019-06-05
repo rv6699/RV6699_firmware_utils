@@ -57,8 +57,8 @@ $(MKFS): $(PWD)/tools/jffs2/mkfs.jffs2.c
 
 build: $(MKFS) $(OUT)/.extract-stamp
 	$(MKFS) $(MKFS_FLAGS)
-	cat $(OUT)/rootfs.hdr $(OUT)/rootfs.jffs2 > \
-		$(OUT)/image_root/kernel_rootfs_*.bin
+	cat $(OUT)/rootfs.hdr $(OUT)/rootfs.jffs2 > $(OUT)/rootfs.bin
+	cp $(OUT)/rootfs.bin $(OUT)/image_root/kernel_rootfs_*
 	$(PYTHON) $(CREATE)
 	@ls -l $(OUT)/patched.img
 

@@ -19,7 +19,7 @@ patchrootfs() {
 	fi
 	echo "Detected new rootfs: ${rootfs}" >&2
 	mpoint=`mktemp -t -p /tmp -d`
-	if !mount -t jffs2 -o rw mtd:${rootfs} ${mpoint}; then
+	if ! mount -t jffs2 -o rw mtd:${rootfs} ${mpoint}; then
 		echo "Failed to mount rootfs!" >&2
 		return 1
 	fi
@@ -44,8 +44,8 @@ _FWLOG=${_FWROOT}/upgrade.log
 PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/mnt/rootfs/bin"
 export PATH
 
-mkdir -p ${_FWROOT}
-if touch ${_FWLOG}; then
+mkdir -p ${_FWROOT} 2>/dev/null
+if touch ${_FWLOG} 2>/dev/null; then
 	exec >>${_FWLOG} 2>&1
 	echo "`date '+%Y-%m-%d %H:%M:%S'` $0 called with args: $@" >&2
 fi
@@ -58,5 +58,6 @@ if [ "$1" = "-u" -a "$3" = "-m" -a "$4" = "OMCI" ]; then
 	echo "flasher returned ${_rv}, trying to patch new rootfs" >&2
 	patchrootfs
 	exit ${_rv}
+else
+	exec /usr/sbin/dualImage_ctrl.orig $@
 fi
-
