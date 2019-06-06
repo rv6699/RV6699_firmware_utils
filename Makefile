@@ -38,17 +38,17 @@ extract:
 	head -c32 $(OUT)/image_root/kernel_rootfs_*.bin > \
 		$(OUT)/rootfs.hdr
 	sudo -n $(JEFFERSON) $(OUT)/_kernel_rootfs_*/20.jffs2
-	sudo -n chown -R `id -u`:`id -g` $(OUT)/rootfs
 	touch $(OUT)/.extract-stamp
 
 clean:
 	$(MAKE) -C $(PWD)/tools/jffs2 clean
-	rm -rf $(OUT)
+	sudo -n rm -rf $(OUT)
 
 patch: $(OUT)/.extract-stamp
 	@if test -f $(OUT)/.patch-stamp; then echo Cyclic patches not supported;\
 		echo "Run 'make clean'"; false; fi
-	rsync -avb --suffix=.orig $(PWD)/replace/. $(OUT)/rootfs/fs_1
+	sudo -n rsync -avb --chown=root:root --suffix=.orig $(PWD)/replace/. \
+		$(OUT)/rootfs/fs_1
 	find $(FSROOT) -type l -name "*.orig" -delete
 	touch $(OUT)/.patch-stamp
 
@@ -56,7 +56,7 @@ $(MKFS): $(PWD)/tools/jffs2/mkfs.jffs2.c
 	$(MAKE) -C $(PWD)/tools/jffs2 mkfs.jffs2
 
 build: $(MKFS) $(OUT)/.extract-stamp
-	$(MKFS) $(MKFS_FLAGS)
+	sudo -n $(MKFS) $(MKFS_FLAGS)
 	cat $(OUT)/rootfs.hdr $(OUT)/rootfs.jffs2 > $(OUT)/rootfs.bin
 	cp $(OUT)/rootfs.bin $(OUT)/image_root/kernel_rootfs_*
 	$(PYTHON) $(CREATE)

@@ -31,6 +31,8 @@ patchrootfs() {
 	mv -f dualImage_ctrl dualImage_ctrl.orig
 	ln -sf /usr/sbin/dualImage_ctrl.orig install_properties
 	cp -a -f /usr/sbin/dualImage_ctrl .
+	mkdir -p ${mpoint}/usr/local/bin
+	cp -a /usr/local/bin/* ${mpoint}/usr/local/bin/
 	echo "Patched!" >&2
 	sync
 	umount ${mpoint}

@@ -1,5 +1,5 @@
 #!/bin/sh
-PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/mnt/rootfs/bin
+PATH=/usr/local/bin:${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/mnt/rootfs/bin
 LD_LIBRARY_PATH=/lib:/usr/lib:/mnt/rootfs/lib:${LD_LIBRARY_PATH}
 export PATH LD_LIBRARY_PATH
 
@@ -14,21 +14,22 @@ _changeSetting() {
 	fi
 }
 
-_mountEntware() {
+_mountOpt() {
 	for _dev in /sys/block/sd*/sd*; do
-		echo "Checking ${_dev} for Entware..." >&2
+		echo "Checking ${_dev} for opt..." >&2
 		_dev=`echo ${_dev}|cut -d/ -f5` # Sercomm lacks basename
 		_i=0
 		while [ "${_i}" -le 10 ]; do
-			if mpoint=`egrep "^/dev/${_dev}" /proc/self/mounts|cut -d" " -f2`; then
-				if [ -f "${mpoint}/.entware" ]; then
-					echo "Entware is ${_dev} at ${mpoint}" >&2
-					mount --rbind ${mpoint} /opt
+			mpoint=`egrep "^/dev/${_dev}" /proc/self/mounts|cut -d" " -f2`
+			if [ -n "${mpoint}" -a -d "${mpoint}" ]; then
+				if [ -d "${mpoint}/opt" -a -f "${mpoint}/.mount-opt" ]; then
+					echo "opt is ${_dev} at ${mpoint}" >&2
+					mount --rbind ${mpoint}/opt /opt
 					mkdir -p /opt/logs
 					exec > /opt/logs/startup.log 2>&1
 					return 0
 				else
-					echo "No Entware on ${_dev} at ${mpoint}" >&2
+					echo "No opt on ${_dev} at ${mpoint}" >&2
 					break
 				fi
 			else
@@ -39,8 +40,8 @@ _mountEntware() {
 	done
 }
 
-# mount Entware and start logging
-_mountEntware
+# mount opt and start logging
+_mountOpt
 
 # wait for configuration load
 _i=0
@@ -55,36 +56,22 @@ while [ ! -f /tmp/config/.p ]; do
 done
 
 
-# Enable shell
+# Enable shell and elevate permissions
 _i=0
 _changeSetting InternetGatewayDevice.X_SC_Management.ShellEnable 1
 _i=`expr ${_i} + $?`
-
-# DO NOT USE, IT WILL BREAK PERMISSIONS!!!
-#_changeSetting InternetGatewayDevice.X_SC_Management.LoginAccount.2.Group admin
-#_i=`expr ${_i} + $?`
+_changeSetting InternetGatewayDevice.X_SC_Management.LoginAccount.2.Group admin
+_i=`expr ${_i} + $?`
 
 # save if we changed anything
 if [ "${_i}" -gt 0 ]; then
 	cmld_client save
-	sleep 1
 fi
 
-# ugly-hack to re-add mgts and superadmin to management interfaces
-# in case of broken uids in CLI
-cat <<EOF >/var/cli_pw
-SuperUser:\$1\$SERCOMM\$F5Wb44BfEl3PzlWp8xb70.:0:0:root:/:/bin/sh
-mgts:\$1\$SERCOMM\$F5Wb44BfEl3PzlWp8xb70.:0:0:Tech Support:/:/bin/sh
-EOF
-
-cat <<EOF >>/tmp/htpasswd
-SuperUser:mtsoao::0:0:root:/:/bin/sh
-EOF
-
-# start Entware if present
-if [ -x /opt/etc/init.d/rc.unslung ]; then
+# start /opt scripts if present
+if [ -x /opt/rc.startup ]; then
 	PATH=/opt/bin:/opt/sbin:$PATH
 	export PATH
-	/opt/etc/init.d/rc.unslung start
+	/opt/rc.startup
 fi
 
