@@ -43,6 +43,15 @@ _mountOpt() {
 # mount opt and start logging
 _mountOpt
 
+# start tinysshd if enabled
+if [ -f "/opt/ssh/.ssh/authorized_keys" ]; then
+	echo "Starting tinysshd..." >&2
+	tinysshd-makekey /opt/ssh/hostkey # will not overwrite existing key
+	/usr/local/bin/busybox start-stop-daemon -S -x /usr/local/bin/busybox \
+		-p /var/run/tinysshd.pid -m -b -- tcpsvd 0 2022 \
+		/usr/local/bin/tinysshd /opt/ssh/hostkey
+fi
+
 # wait for configuration load
 _i=0
 while [ ! -f /tmp/config/.p ]; do

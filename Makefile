@@ -49,7 +49,7 @@ patch: $(OUT)/.extract-stamp
 		echo "Run 'make clean'"; false; fi
 	sudo -n rsync -avb --chown=root:root --suffix=.orig $(PWD)/replace/. \
 		$(OUT)/rootfs/fs_1
-	find $(FSROOT) -type l -name "*.orig" -delete
+	sudo -n find $(FSROOT) -type l -name "*.orig" -delete
 	touch $(OUT)/.patch-stamp
 
 $(MKFS): $(PWD)/tools/jffs2/mkfs.jffs2.c

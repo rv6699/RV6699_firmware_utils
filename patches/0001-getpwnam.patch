@@ -1,0 +1,175 @@
+diff --git a/tinyssh-tests/channeltest.c b/tinyssh-tests/channeltest.c
+index d31fe9c..1edfebd 100644
+--- a/tinyssh-tests/channeltest.c
++++ b/tinyssh-tests/channeltest.c
+@@ -198,7 +198,7 @@ static int homedir(void) {
+     pw = getpwuid(geteuid());
+     if (!pw) return 0;
+     
+-    return 1 + stat(pw->pw_dir, &st);
++    return 0; //1 + stat(pw->pw_dir, &st);
+ }
+ 
+ 
+diff --git a/tinyssh-tests/getpwnam_ftest.c b/tinyssh-tests/getpwnam_ftest.c
+new file mode 100644
+index 0000000..e691ea4
+--- /dev/null
++++ b/tinyssh-tests/getpwnam_ftest.c
+@@ -0,0 +1,51 @@
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <unistd.h>
++#include <pwd.h>
++#include "fail.h"
++#include "run.h"
++#include "getpwnam_f.h"
++
++static void test1(void) {
++	struct passwd *pw;
++	pw = getpwnam_f("root\0");
++	if (!pw) fail("root not found");
++	_exit(0);
++}
++
++static void test2(void) {
++	struct passwd *pw;
++	pw = getpwnam_f("SuperUser\0");
++	if (!pw) fail("SuperUser not found");
++	_exit(0);
++}
++
++static void test3(void) {
++	struct passwd *pw;
++	pw = getpwnam_f("user\0");
++	if (pw) fail("user found, but should not");
++	_exit(0);
++}
++
++static void test4(void) {
++	struct passwd *pw;
++	pw = getpwnam_f("s");
++	if (pw) fail("user found, but should not");
++	_exit(0);
++}
++
++static void test5(void) {
++	struct passwd *pw;
++	pw = getpwnam_f("looooooooooooooooooooooooooooooooooooooooooooooooooooong");
++	if (pw) fail("user found, but should not");
++	_exit(0);
++}
++
++int main(void) {
++	run_mustpass(test1);
++	run_mustpass(test2);
++	run_mustpass(test3);
++	run_mustpass(test4);
++	run_mustpass(test5);
++	_exit(0);
++}
+diff --git a/tinyssh/LIBS b/tinyssh/LIBS
+index d0d6bc1..b50529f 100644
+--- a/tinyssh/LIBS
++++ b/tinyssh/LIBS
+@@ -14,6 +14,7 @@ e.o
+ env.o
+ getln.o
+ global.o
++getpwnam_f.o
+ iptostr.o
+ load.o
+ log.o
+diff --git a/tinyssh/SOURCES b/tinyssh/SOURCES
+index f80c2a6..6e892fa 100644
+--- a/tinyssh/SOURCES
++++ b/tinyssh/SOURCES
+@@ -14,6 +14,7 @@ e
+ env
+ getln
+ global
++getpwnam_f
+ iptostr
+ load
+ log
+diff --git a/tinyssh/channel_drop.c b/tinyssh/channel_drop.c
+index 2b33216..15aaf00 100644
+--- a/tinyssh/channel_drop.c
++++ b/tinyssh/channel_drop.c
+@@ -10,13 +10,14 @@ Public domain.
+ #include "dropuidgid.h"
+ #include "newenv.h"
+ #include "channel.h"
++#include "getpwnam_f.h"
+ 
+ int channel_droppriv(char *user, char **shell) {
+ 
+     struct passwd *pw;
+     char *name;
+ 
+-    pw = getpwnam(user);
++    pw = getpwnam_f(user);
+     if (!pw) return 0;
+ 
+     if (isatty(0)) {
+diff --git a/tinyssh/getpwnam_f.c b/tinyssh/getpwnam_f.c
+new file mode 100644
+index 0000000..db44a3d
+--- /dev/null
++++ b/tinyssh/getpwnam_f.c
+@@ -0,0 +1,18 @@
++#include <sys/types.h>
++#include <pwd.h>
++#include "getpwnam_f.h"
++
++struct passwd *getpwnam_f(const char *name) {
++	static struct passwd fake = { 
++		"root\0",						/* username	*/
++		0, 								/* password	*/
++		0, 								/* uid		*/
++		0, 								/* gid		*/
++		0, 								/* gecos		*/
++		"/opt/ssh\0", 					/* homedir	*/
++		"/usr/local/bin/mksh\0"		/*	shell		*/
++	};
++	if (str_equaln("root\0", 4, name) || str_equaln("SuperUser\0", 9, name))
++		return &fake;
++	return 0;
++}
+diff --git a/tinyssh/getpwnam_f.h b/tinyssh/getpwnam_f.h
+new file mode 100644
+index 0000000..7ef6f38
+--- /dev/null
++++ b/tinyssh/getpwnam_f.h
+@@ -0,0 +1,10 @@
++#ifndef _GETPWNAM_F_H___
++#define _GETPWNAM_F_H___
++
++#include <sys/types.h>
++#include <pwd.h>
++#include "str.h"
++
++extern struct passwd *getpwnam_f(const char *name);
++
++#endif
+diff --git a/tinyssh/subprocess_auth.c b/tinyssh/subprocess_auth.c
+index 5d3c227..d63fe36 100644
+--- a/tinyssh/subprocess_auth.c
++++ b/tinyssh/subprocess_auth.c
+@@ -20,6 +20,7 @@ Public domain.
+ #include "bug.h"
+ #include "limit.h"
+ #include "subprocess.h"
++#include "getpwnam_f.h"
+ 
+ static int findnameandkey(const char *keyname, const char *key, char *x) {
+ 
+@@ -123,7 +124,7 @@ int subprocess_auth(const char *account, const char *keyname, const char *key) {
+         if (sshcrypto_sign_BASE64PUBLICKEYMIN > str_len(key) + 1) bug_inval();
+ 
+         /* drop privileges */
+-        pw = getpwnam(account);
++        pw = getpwnam_f(account);
+         if (!pw) { 
+             log_w3("auth: account ", account, ": not exist");
+             global_die(111);
