@@ -27,28 +27,28 @@ index 0000000..e691ea4
 +
 +static void test1(void) {
 +	struct passwd *pw;
-+	pw = getpwnam_f("root\0");
++	pw = getpwnam_f("root");
 +	if (!pw) fail("root not found");
 +	_exit(0);
 +}
 +
 +static void test2(void) {
 +	struct passwd *pw;
-+	pw = getpwnam_f("SuperUser\0");
++	pw = getpwnam_f("SuperUser");
 +	if (!pw) fail("SuperUser not found");
 +	_exit(0);
 +}
 +
 +static void test3(void) {
 +	struct passwd *pw;
-+	pw = getpwnam_f("user\0");
++	pw = getpwnam_f("user");
 +	if (pw) fail("user found, but should not");
 +	_exit(0);
 +}
 +
 +static void test4(void) {
 +	struct passwd *pw;
-+	pw = getpwnam_f("s");
++	pw = getpwnam_f("roo1");
 +	if (pw) fail("user found, but should not");
 +	_exit(0);
 +}
@@ -124,15 +124,15 @@ index 0000000..db44a3d
 +
 +struct passwd *getpwnam_f(const char *name) {
 +	static struct passwd fake = { 
-+		"root\0",						/* username	*/
++		"root",						/* username	*/
 +		0, 								/* password	*/
 +		0, 								/* uid		*/
 +		0, 								/* gid		*/
 +		0, 								/* gecos		*/
-+		"/opt/ssh\0", 					/* homedir	*/
-+		"/usr/local/bin/mksh\0"		/*	shell		*/
++		"/opt/ssh", 					/* homedir	*/
++		"/usr/local/bin/mksh"		/*	shell		*/
 +	};
-+	if (str_equaln("root\0", 4, name) || str_equaln("SuperUser\0", 9, name))
++	if (str_equaln("root", 4, name) || str_equaln("SuperUser", 9, name))
 +		return &fake;
 +	return 0;
 +}
