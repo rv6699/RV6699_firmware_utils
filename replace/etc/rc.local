@@ -43,7 +43,7 @@ _mountOpt() {
 _addVlan() {
 	echo "Adding vlan $2 to interface $1" >&2
 	vlanctl --if-create-name $1 $1.$2
-	vlanctl --if $1 --rx --tags 1 --filter-vid $2 0 --pop-tag \
+	vlanctl --if $1 --rx --tags 1 --filter-vid $2 1 --pop-tag \
 		--set-rxif $1.$2 --rule-type 0 --rule-append
 	vlanctl --if $1 --tx --tags 0 --filter-txif $1.$2 --push-tag \
 		--set-vid 3 0 --rule-type 0 --rule-append
@@ -134,8 +134,8 @@ if [ "${_Type}" = "IP_Bridged" ]; then
 
 	brctl addif brg0 eth0.8
 
-	ethswctl -c unibridgemode -v 1 -p 1
-	ethswctl -c univlanaction -v 1 -p 1
+	ethswctl -c unibridgemode -v 1 -p 0
+	ethswctl -c univlanaction -v 1 -p 0
 fi
 
 # start /opt scripts if present
