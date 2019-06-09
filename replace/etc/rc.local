@@ -40,6 +40,25 @@ _mountOpt() {
 	done
 }
 
+_addVlan() {
+	echo "Adding vlan $2 to interface $1" >&2
+	vlanctl --if-create-name $1 $1.$2
+	vlanctl --if $1 --rx --tags 1 --filter-vid $2 0 --pop-tag \
+		--set-rxif $1.$2 --rule-type 0 --rule-append
+	vlanctl --if $1 --tx --tags 0 --filter-txif $1.$2 --push-tag \
+		--set-vid 3 0 --rule-type 0 --rule-append
+	vlanctl --if $1 --set-if-mode-rg
+	ifconfig $1 up
+	ifconfig $1.$2 up
+}
+
+_addBridge() {
+	brctl addbr $1
+	brctl stp $1 off
+	brctl setfd $1 0
+	ifconfig $1 up
+}
+
 # mount opt and start logging
 _mountOpt
 
@@ -75,6 +94,48 @@ _i=`expr ${_i} + $?`
 # save if we changed anything
 if [ "${_i}" -gt 0 ]; then
 	cmld_client save
+fi
+
+# start ZTE bridge on eth0 if configured
+_Type=`cmld_client get InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.ConnectionType|cut -d" " -f3`
+if [ "${_Type}" = "IP_Bridged" ]; then
+	gponif -a wan0 -g 1
+	gponif -a wan1 -g 1
+
+	vlanctl --if-create-name wan0 rwan0.3
+	vlanctl --if wan0 --rx --tags 1 --filter-vid 3 1 --pop-tag \
+		--set-rxif  rwan0.3 --rule-type 0 --rule-append
+	vlanctl --if wan0 --tx --tags 0 --filter-txif  rwan0.3 --push-tag --set-vid\
+		3 0 --set-pbits 0 0 --set-skb-mark-port 2 --rule-type 0 --rule-append
+
+	vlanctl --if-create-name wan1 rwan1.5
+	vlanctl --if wan1 --rx --tags 1 --filter-vid 5 1 --pop-tag \
+		--set-rxif  rwan1.5 --rule-type 0 --rule-append
+	vlanctl --if wan1 --tx --tags 0 --filter-txif  rwan1.5 --push-tag --set-vid\
+		3 0 --set-pbits 0 0 --set-skb-mark-port 2 --rule-type 0 --rule-append
+
+	ifconfig wan0 up
+	ifconfig wan1 up
+	ifconfig rwan0.3 up
+	ifconfig rwan1.5 up
+
+	_addVlan eth0 3
+	_addVlan eth0 5
+	_addVlan eth0 8
+
+	_addBridge br-data
+	_addBridge br-sip
+
+	brctl addif br-data rwan0.3
+	brctl addif br-data eth0.3
+
+	brctl addif br-sip rwan1.5
+	brctl addif br-sip eth0.5
+
+	brctl addif brg0 eth0.8
+
+	ethswctl -c unibridgemode -v 1 -p 1
+	ethswctl -c univlanaction -v 1 -p 1
 fi
 
 # start /opt scripts if present
